@@ -6,3 +6,6 @@ class PaymentService:
     def create_payment(self, amount):
         payment = Payment.objects.create(amount=amount)
         return payment
+
+    def delete_payment(self, payment_id):
+        Payment.objects.filter(id=payment_id).delete()
