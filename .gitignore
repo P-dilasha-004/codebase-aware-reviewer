@@ -6,3 +6,4 @@ venv/
 .env
 local.settings.json
 .DS_Store
+logs/

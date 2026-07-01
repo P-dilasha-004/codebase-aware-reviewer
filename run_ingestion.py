@@ -50,6 +50,7 @@ def _ensure_collection(client: QdrantClient) -> None:
         )
         print(f"  Created collection '{QDRANT_COLLECTION}' (cosine, dim={NOMIC_DIM})")
 
+<<<<<<< HEAD
     try:
         client.create_payload_index(
             collection_name=QDRANT_COLLECTION,
@@ -62,6 +63,21 @@ def _ensure_collection(client: QdrantClient) -> None:
             print("  repo_id tenant index already present")
         else:
             raise
+=======
+    for field, is_tenant in [("repo_id", True), ("file_path", False)]:
+        try:
+            client.create_payload_index(
+                collection_name=QDRANT_COLLECTION,
+                field_name=field,
+                field_schema=qdrant_models.KeywordIndexParams(type="keyword", is_tenant=is_tenant),
+            )
+            print(f"  {field} index created")
+        except Exception as exc:
+            if "already exists" in str(exc).lower():
+                print(f"  {field} index already present")
+            else:
+                raise
+>>>>>>> all-phases
 
 
 def _head_sha(repo_path: str) -> str:

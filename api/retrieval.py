@@ -14,7 +14,9 @@ the 7,000-token cap.
 from __future__ import annotations
 
 import logging
+import time
 from dataclasses import dataclass, field
+from typing import Callable
 
 import tiktoken
 from qdrant_client import QdrantClient
@@ -254,6 +256,7 @@ def retrieve_and_assemble(
     payload: dict,
     qdrant_client: QdrantClient,
     embedder,
+    on_stage: Callable[[str, float, dict], None] | None = None,
 ) -> PromptResult:
     """
     Embed the fetched diff, query Qdrant, apply truncation, and return the
@@ -264,16 +267,26 @@ def retrieve_and_assemble(
         payload:       original webhook payload (for repo_id).
         qdrant_client: connected Qdrant client.
         embedder:      fastembed TextEmbedding instance (already loaded).
+        on_stage:      optional callback(stage_name, latency_ms, metadata) invoked
+                       after "embedding" and after "qdrant_retrieval" complete —
+                       used by Task 5.1 to emit per-stage trace logs without this
+                       function needing to know how logging is implemented.
     """
     repo_id = payload.get("repo_id", "")
     diff    = _diff_block(files)
 
     # Embed diff → query vector
+    t0 = time.monotonic()
     vector = _embed_files(files, embedder)
+    if on_stage:
+        on_stage("embedding", (time.monotonic() - t0) * 1000, {"file_count": len(files)})
 
     # Retrieve from Qdrant with mandatory repo_id filter
+    t0 = time.monotonic()
     chunks_with_scores = _query_qdrant(qdrant_client, repo_id, vector)
     retrieved_count    = len(chunks_with_scores)
+    if on_stage:
+        on_stage("qdrant_retrieval", (time.monotonic() - t0) * 1000, {"chunks_retrieved": retrieved_count})
 
     logger.info(
         "qdrant_retrieved repo=%s pr=%s chunks=%d",
