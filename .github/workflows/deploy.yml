@@ -1,0 +1,54 @@
+name: Deploy Pattern Buddy to Azure App Service
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'api/**'
+      - 'requirements.txt'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch: {}  # allows manual re-deploy
+
+concurrency:
+  group: deploy-pattern-buddy
+  cancel-in-progress: false  # never cancel a deploy mid-flight
+
+jobs:
+  deploy:
+    name: Zip and deploy to App Service
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build deployment package
+        run: zip -r deploy.zip api/ requirements.txt
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy to pattern-buddy-v2
+        run: |
+          az webapp deploy \
+            --name pattern-buddy-v2 \
+            --resource-group pattern-buddy-rg \
+            --src-path deploy.zip \
+            --type zip
+
+      - name: Verify health endpoint
+        run: |
+          sleep 20  # give the worker a moment to restart after deploy
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            https://pattern-buddy-v2-gabre3endda8gwck.northcentralus-01.azurewebsites.net/health)
+          echo "Health check status: $HTTP_STATUS"
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "ERROR: /health did not return 200 after deploy"
+            exit 1
+          fi
+
+      - name: Azure logout
+        if: always()
+        run: az logout
