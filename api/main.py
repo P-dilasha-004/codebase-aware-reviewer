@@ -31,9 +31,10 @@ app = FastAPI(title="Pattern Buddy", version="2.0.0")
 # ── Security ──────────────────────────────────────────────────────────────────
 
 _WEBHOOK_SECRET: str = os.environ.get("WEBHOOK_SECRET", "")
-_PAT:          str = os.environ.get("PAT", "")
-_PHI_ENDPOINT: str = os.environ.get("PHI_ENDPOINT", "")
-_PHI_KEY:      str = os.environ.get("PHI_KEY", "")
+_PAT:            str = os.environ.get("PAT", "")
+_PHI_ENDPOINT:   str = os.environ.get("PHI_ENDPOINT", "")
+_PHI_KEY:        str = os.environ.get("PHI_API_KEY", "")
+_PHI_DEPLOYMENT: str = os.environ.get("PHI_DEPLOYMENT_NAME", "Phi-4-mini-reasoning")
 
 def _get_qdrant() -> "QdrantClient":
     from qdrant_client import QdrantClient
@@ -106,7 +107,7 @@ async def _process_review(payload: dict[str, Any]) -> None:
 
         # Task 2.4 — inference handoff
         logger.info("inference_start repo=%s pr=%s", repo_id, pr_number)
-        review = await call_inference(prompt, _PHI_ENDPOINT, _PHI_KEY)
+        review = await call_inference(prompt, _PHI_ENDPOINT, _PHI_KEY, phi_model=_PHI_DEPLOYMENT)
         logger.info("inference_complete repo=%s pr=%s chars=%d", repo_id, pr_number, len(review))
 
         # Task 2.4 — GitHub callback

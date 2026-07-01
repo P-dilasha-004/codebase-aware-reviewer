@@ -14,6 +14,7 @@ issues namespace in the GitHub API).
 from __future__ import annotations
 
 import logging
+import re
 
 import httpx
 
@@ -26,9 +27,9 @@ _PHI_CONTEXT_WINDOW: int = 8_192   # Phi-4-mini-reasoning hard limit
 from api.retrieval import PROMPT_TOKEN_CAP  # noqa: E402 — avoids circular at call time
 
 # Generation headroom = context window − input cap; must stay in sync with retrieval.py.
-MAX_NEW_TOKENS: int = _PHI_CONTEXT_WINDOW - PROMPT_TOKEN_CAP
+MAX_NEW_TOKENS: int = 256  # reduced for e2e test — reasoning model generates <think> tokens too
 
-INFERENCE_TIMEOUT_S: float = 120.0   # Phi-4-mini-reasoning can be slow; cap at 2 min
+INFERENCE_TIMEOUT_S: float = 180.0   # Phi-4-mini-reasoning can be slow; cap at 3 min
 GITHUB_TIMEOUT_S:    float = 30.0
 
 GITHUB_API_BASE = "https://api.github.com"
@@ -41,10 +42,14 @@ FALLBACK_COMMENT = (
 
 # ── Inference ─────────────────────────────────────────────────────────────────
 
+_THINK_RE = re.compile(r"<think>.*?</think>", re.DOTALL)
+
+
 async def call_inference(
     prompt: str,
     phi_endpoint: str,
     phi_key: str,
+    phi_model: str = "Phi-4-mini-reasoning",
     http_timeout: float = INFERENCE_TIMEOUT_S,
 ) -> str:
     """
@@ -59,6 +64,7 @@ async def call_inference(
         "Content-Type": "application/json",
     }
     body = {
+        "model": phi_model,
         "messages": [{"role": "user", "content": prompt}],
         "max_tokens": MAX_NEW_TOKENS,
     }
@@ -69,9 +75,11 @@ async def call_inference(
 
     data = resp.json()
     try:
-        return data["choices"][0]["message"]["content"]
+        raw = data["choices"][0]["message"]["content"]
     except (KeyError, IndexError) as exc:
         raise ValueError(f"Unexpected inference response shape: {data!r}") from exc
+
+    return _THINK_RE.sub("", raw).lstrip()
 
 
 # ── GitHub comment ────────────────────────────────────────────────────────────

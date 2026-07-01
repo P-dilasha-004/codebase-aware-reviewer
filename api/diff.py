@@ -120,7 +120,7 @@ async def extract_and_fetch(
         return FetchResult()
 
     # ── Concurrent fetch ──────────────────────────────────────────────────────
-    async with httpx.AsyncClient(timeout=http_timeout) as client:
+    async with httpx.AsyncClient(timeout=http_timeout, follow_redirects=True) as client:
         results = await asyncio.gather(
             *[_fetch_one(client, f, pat) for f in to_fetch],
             return_exceptions=True,
