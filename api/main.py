@@ -43,9 +43,18 @@ def _get_qdrant() -> "QdrantClient":
         api_key=os.environ.get("QDRANT_API_KEY", ""),
     )
 
-def _get_embedder():
+# Loaded once at startup — reloading the ONNX model per request causes OOM on App Service.
+def _load_embedder():
     from fastembed import TextEmbedding
     return TextEmbedding(model_name="nomic-ai/nomic-embed-text-v1.5")
+
+_embedder = None
+
+def _get_embedder():
+    global _embedder
+    if _embedder is None:
+        _embedder = _load_embedder()
+    return _embedder
 
 
 def _verify_signature(body: bytes, signature_header: str | None) -> None:
