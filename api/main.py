@@ -97,12 +97,11 @@ async def _process_review(payload: dict[str, Any]) -> None:
             logger.info("large_pr_macro_path repo=%s pr=%s", repo_id, pr_number)
             prompt = build_macro_prompt(payload)
         else:
-            qdrant   = _get_qdrant()
-            embedder = _get_embedder()
-            pr_obj   = await asyncio.get_event_loop().run_in_executor(
-                None, retrieve_and_assemble,
-                fetch_result.files, payload, qdrant, embedder,
-            )
+            def _retrieve_in_thread():
+                return retrieve_and_assemble(
+                    fetch_result.files, payload, _get_qdrant(), _get_embedder()
+                )
+            pr_obj = await asyncio.get_event_loop().run_in_executor(None, _retrieve_in_thread)
             prompt = pr_obj.prompt
 
         # Task 2.4 — inference handoff
