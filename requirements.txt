@@ -4,3 +4,8 @@ tiktoken
 tree-sitter>=0.21
 tree-sitter-python
 python-dotenv
+pyyaml
+fastapi
+uvicorn
+gunicorn
+httpx
