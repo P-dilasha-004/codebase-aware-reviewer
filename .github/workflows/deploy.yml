@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'api/**'
+      - 'ingestion/**'
       - 'requirements.txt'
       - '.github/workflows/deploy.yml'
   workflow_dispatch: {}  # allows manual re-deploy
@@ -23,7 +24,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build deployment package
-        run: zip -r deploy.zip api/ requirements.txt
+        run: |
+          zip -r deploy.zip api/ ingestion/ requirements.txt \
+            -x "**/__pycache__/*" -x "**/tests/*" -x "**/*.pyc"
 
       - name: Azure login
         uses: azure/login@v2
